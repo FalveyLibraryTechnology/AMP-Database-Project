@@ -12,7 +12,7 @@ from src.ProgressBar import ProgressBar
 from src.utils import getColumnsFromExcelFile, normalize_isbn, sortUnique
 
 dir = os.path.dirname(__file__)
-reports_dir = dir + '\\Reports'
+reports_dir = dir + '\\Reports' 
 
 # Make and Reset database
 conn = sqlite3.connect(dir + "\\tmp\\sample_db.sqlite")

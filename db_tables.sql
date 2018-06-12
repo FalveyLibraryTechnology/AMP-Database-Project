@@ -4,6 +4,8 @@ DROP TABLE IF EXISTS categories;
 DROP TABLE IF EXISTS lists;
 DROP TABLE IF EXISTS expanded_isbns;
 DROP TABLE IF EXISTS lists_books;
+DROP TABLE IF EXISTS courses;
+DROP TABLE IF EXISTS courses_books;
 
 -- STATIC
 CREATE TABLE books
@@ -54,4 +56,24 @@ CREATE TABLE expanded_isbns
 
     FOREIGN KEY(isbn_src) REFERENCES books(isbn_src),
     FOREIGN KEY(isbn_expanded) REFERENCES books(isbn_expanded)
+);
+
+CREATE TABLE `courses` (
+	`course_code`	TEXT,
+	`professor_name`	TEXT,
+	`professor_email`	TEXT,
+	`num_students`	INTEGER,
+	
+	PRIMARY KEY(`course_code`)
+);
+
+CREATE TABLE `courses_books` (
+	`isbn`	INTEGER,
+	`course_code`	TEXT,
+	`type`	TEXT,
+	`price`	REAL,
+
+	PRIMARY KEY(`isbn`,`course_code`)
+
+    FOREIGN KEY(course_code) REFERENCES courses(course_code)
 );

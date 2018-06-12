@@ -30,12 +30,13 @@ else:
 	print("No such database file exists. Please run setup_db.py to create database \'%s\' first" % (args.databasename))
 
 	
-def updateListInUse(LIST_ID, CATEGORY_ID):
-	bar = ProgressBar(1, label="  updating ")
-	cursor.execute("UPDATE lists SET in_use = 1 WHERE list_id=? and category_id=?;", (LIST_ID,CATEGORY_ID))
-	bar.update()
-	bar.finish()
-	conn.commit()
+def updateListInUse(LIST_ID, CATEGORY_ID, in_use):
+    in_use = 1 if(in_use.lower() == "yes") else 0
+    bar = ProgressBar(1, label="  updating ")
+    cursor.execute("UPDATE lists SET in_use = ? WHERE list_id=? and category_id=?;", (in_use,LIST_ID,CATEGORY_ID))
+    bar.update()
+    bar.finish()
+    conn.commit()
 
 
 def parseConfigurationFile():	
@@ -47,8 +48,8 @@ def parseConfigurationFile():
 			in_use = r[0]
 			category_id = r[1]
 			list_id = r[3]
-			if(in_use.lower() == "yes"):
-				updateListInUse(list_id, category_id)
+			#if(in_use.lower() == "yes"):
+			updateListInUse(list_id, category_id, in_use)
 		
 
 # Check if configuration file exists and get row count

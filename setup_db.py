@@ -2,6 +2,7 @@ import csv
 import datetime
 import json
 import os
+import sys
 import re
 import sqlite3
 import xlrd
@@ -12,7 +13,7 @@ from collections import OrderedDict
 from src.ProgressBar import ProgressBar
 from src.utils import getColumnsFromExcelFile, normalize_isbn, sortUnique
 
-NUKE = False
+NUKE = True
 dir = os.path.dirname(__file__)
 
 parser = argparse.ArgumentParser()
@@ -31,20 +32,24 @@ cursor = conn.cursor()
 if NUKE:
     init_sql = open(dir + "\\db_tables.sql", "r").read()
     cursor.executescript(init_sql)
-    cursor.execute("INSERT INTO categories(name) VALUES (?);", ("Bookstore List",))
+    cursor.execute("INSERT INTO categories(name) VALUES (?)", ("Bookstore List",))
     BOOKSTORE_CAT = cursor.lastrowid
-    cursor.execute("INSERT INTO categories(name) VALUES (?);", ("Catalog List",))
+    cursor.execute("INSERT INTO categories(name) VALUES (?)", ("Catalog List",))
     CATALOG_CAT = cursor.lastrowid
-    cursor.execute("INSERT INTO categories(name) VALUES (?);", ("Publisher List",))
+    cursor.execute("INSERT INTO categories(name) VALUES (?)", ("Publisher List",))
     PUBLISHER_CAT = cursor.lastrowid
+    cursor.execute("INSERT INTO categories(name) VALUES (?)", ("Class List",))
+    CLASS_CAT = cursor.lastrowid
     conn.commit()
 else:
-    cursor.execute("SELECT category_id FROM categories WHERE name=?;", ("Bookstore List",))
+    cursor.execute("SELECT category_id FROM categories WHERE name=?", ("Bookstore List",))
     BOOKSTORE_CAT = cursor.fetchone()[0]
-    cursor.execute("SELECT category_id FROM categories WHERE name=?;", ("Catalog List",))
+    cursor.execute("SELECT category_id FROM categories WHERE name=?", ("Catalog List",))
     CATALOG_CAT = cursor.fetchone()[0]
-    cursor.execute("SELECT category_id FROM categories WHERE name=?;", ("Publisher List",))
+    cursor.execute("SELECT category_id FROM categories WHERE name=?", ("Publisher List",))
     PUBLISHER_CAT = cursor.fetchone()[0]
+    cursor.execute("SELECT category_id FROM categories WHERE name=?", ("Class List",))
+    CLASS_CAT = cursor.fetchone()[0]
 
 
 def parsePublisherCSV(filepath):
@@ -97,7 +102,7 @@ def addPublisherFiles():
         if cursor.fetchone():
             continue
         cursor.execute(
-            "INSERT INTO lists(name, updated, in_use, category_id) VALUES (?,?,?,?);",
+            "INSERT INTO lists(name, updated, in_use, category_id) VALUES (?,?,?,?)",
             (file, datetime.datetime.now(), True, PUBLISHER_CAT)
         )
         FILE_ID = cursor.lastrowid
@@ -121,12 +126,12 @@ def addPublisherFiles():
                 ISBN = ISBN[0]
             else:
                 cursor.execute(
-                    "INSERT INTO books(isbn, title, year, electronic) VALUES (?,?,?,?);",
+                    "INSERT INTO books(isbn, title, year, electronic) VALUES (?,?,?,?)",
                     (book["isbn"], book["title"], book["pub_year"], book["electronic"])
                 )
                 ISBN = book["isbn"]
             cursor.execute(
-                "INSERT INTO lists_books(isbn, list_id) VALUES (?,?);",
+                "INSERT INTO lists_books(isbn, list_id) VALUES (?,?)",
                 (ISBN, FILE_ID)
             )
             bar.update()
@@ -190,7 +195,7 @@ def addBookstoreList():
         if cursor.fetchone():
             continue
         cursor.execute(
-            "INSERT INTO lists(name, updated, in_use, category_id) VALUES (?,?,?,?);",
+            "INSERT INTO lists(name, updated, in_use, category_id) VALUES (?,?,?,?)",
             (file, datetime.datetime.now(), True, BOOKSTORE_CAT)
         )
         FILE_ID = cursor.lastrowid
@@ -215,12 +220,12 @@ def addBookstoreList():
                 ISBN = ISBN[0]
             else:
                 cursor.execute(
-                    "INSERT INTO books(isbn, title, year) VALUES (?,?,?);",
+                    "INSERT INTO books(isbn, title, year) VALUES (?,?,?)",
                     (book["isbn"], book["title"], book["cy"])
                 )
                 ISBN = book["isbn"]
             cursor.execute(
-                "INSERT INTO lists_books(isbn, list_id) VALUES (?,?);",
+                "INSERT INTO lists_books(isbn, list_id) VALUES (?,?)",
                 (ISBN, FILE_ID)
             )
             bar.update()
@@ -230,7 +235,6 @@ def addBookstoreList():
 		
 def parseCatalogCSVList(filepath):
     print(filepath)
-
     books_list = []
     with open(filepath, 'r', encoding="utf-8") as f:
         reader = csv.reader(f)
@@ -257,7 +261,7 @@ def addCatalogList():
         if cursor.fetchone():
             continue
         cursor.execute(
-            "INSERT INTO lists(name, updated, in_use, category_id) VALUES (?,?,?,?);",
+            "INSERT INTO lists(name, updated, in_use, category_id) VALUES (?,?,?,?)",
             (file, datetime.datetime.now(), True, CATALOG_CAT)
         )
         FILE_ID = cursor.lastrowid
@@ -282,22 +286,102 @@ def addCatalogList():
                 ISBN = ISBN[0]
             else:
                 cursor.execute(
-                    "INSERT INTO books(isbn, title, year) VALUES (?,?,?);",
+                    "INSERT INTO books(isbn, title, year) VALUES (?,?,?)",
                     (book["isbn"], book["title"], book["pub_yr"])
                 )
                 ISBN = book["isbn"]
             cursor.execute(
-                "INSERT INTO lists_books(isbn, list_id) VALUES (?,?);",
+                "INSERT INTO lists_books(isbn, list_id) VALUES (?,?)",
                 (ISBN, FILE_ID)
             )
             bar.update()
         bar.finish()
         conn.commit()
 
-		
+
+def parseClassJsonList(filepath):
+    with open(filepath, 'r') as f:
+        cls_json = json.load(f)
+    f.close()
+
+    cls_list = []
+    print (filepath)
+    bar = ProgressBar(len(cls_json), label="  parsing ")
+    for row in cls_json:
+        cls = OrderedDict()
+        cls['code'] = row['code']
+        cls['prof_name'] = row['prof_name']
+        cls['prof_email'] = row['prof_email']
+        cls['num_stu'] = row['students']
+        cls['books'] = []
+        if(len(row['books']) > 0):
+            ordered_dictionary = [r for r in row['books']]
+            cls['books'] = ordered_dictionary
+        cls_list.append(cls)
+        bar.update()
+    bar.finish()
+    return cls_list
+
+    
+def addClassList():
+    class_dir = dir + '\\ClassList'
+    classlist_files = [file.name for file in os.scandir(class_dir) if file.is_file()]
+    for file in classlist_files:
+        if re.match('^\d+.*-with-books.json$', file):
+            print(file)
+            # Save file as list
+            cursor.execute("SELECT 1 FROM lists WHERE name=?", (file,))
+            if cursor.fetchone():
+                continue
+            cursor.execute( #insert into lists
+                "INSERT INTO lists(name, updated, category_id) VALUES (?,?,?)",
+                (file, datetime.datetime.now(), CLASS_CAT)
+            )
+            FILE_ID = cursor.lastrowid
+            classes = []
+            filepath = os.path.join(class_dir, file)
+            if file[-3:] == "csv":
+                print ("TODO txt processing")
+            elif file[-4:] == "json":
+                classes = parseClassJsonList(filepath)
+            else: # Excel
+                print ("TODO excel processing")
+            bar = ProgressBar(len(classes), label="  saving (%d) " % len(classes))          
+            for cls in classes:
+                cursor.execute("SELECT course_code FROM courses WHERE course_code=?", (cls["code"],)) #chk if course_code is in courses
+                CODE = cursor.fetchone() #course_code = ...
+                if CODE: 
+                    CODE = CODE[0]
+                else:
+                    #insert into courses
+                    cursor.execute("INSERT INTO courses(course_code, professor_name, professor_email, num_students) VALUES (?,?,?,?)",
+                                    (cls["code"], cls["prof_name"], cls["prof_email"], cls["num_stu"]))
+                    CODE = cls["code"]
+                if(len(cls["books"]) > 0):
+                    for book in cls["books"]:
+                        cursor.execute("SELECT 1 FROM courses_books WHERE isbn=? and course_code=?", (book["isbn"], cls["code"],))
+                        ISBN = cursor.fetchone()
+                        if ISBN:
+                            pass
+                        else:
+                            cursor.execute("INSERT INTO courses_books(isbn, course_code, type, price) VALUES (?,?,?,?)",
+                                            (book["isbn"], cls["code"], book["type"], book["price"]))
+                                            
+                        cursor.execute("SELECT 1 FROM lists_books WHERE isbn=? and list_id=?", (book["isbn"], FILE_ID, ))
+                        if cursor.fetchone():
+                                continue
+                        else:
+                            cursor.execute("INSERT INTO lists_books(isbn, list_id) VALUES (?,?)",
+                                        (book["isbn"], FILE_ID)) 
+                        
+                bar.update()
+            bar.finish()
+            conn.commit()
+                                        
+                                        
 def getCategoryLists(CAT_ID, CAT_NAME):
 	#Get category files
-	cursor.execute("select category_id,list_id,name from lists where category_id=?;", (CAT_ID,))
+	cursor.execute("select category_id,list_id,name from lists where category_id=?", (CAT_ID,))
 	category_list = cursor.fetchall()
 	
 	category_df = pd.DataFrame(([cat[0],cat[1],cat[2]] for cat in category_list), columns=['category_id', 'list_id', 'list_name'])
@@ -309,18 +393,19 @@ def getCategoryLists(CAT_ID, CAT_NAME):
 
 
 def createConfigFile():
-	catalog_df = getCategoryLists(CATALOG_CAT, 'CATALOG_LISTS')
-	bookstore_df = getCategoryLists(BOOKSTORE_CAT, 'BOOKSTORE_LISTS')
-	publisher_df = getCategoryLists(PUBLISHER_CAT, 'PUBLISHER_LISTS')
-	
-	frames = [catalog_df, bookstore_df, publisher_df]
-	category_df = pd.concat(frames)
-	
-	category_df.to_csv(dir + "\\configuration.csv", index=False, encoding='utf-8')
+    catalog_df = getCategoryLists(CATALOG_CAT, 'CATALOG_LISTS')
+    bookstore_df = getCategoryLists(BOOKSTORE_CAT, 'BOOKSTORE_LISTS')
+    classlist_df = getCategoryLists(CLASS_CAT, 'CLASS_LISTS')
+    publisher_df = getCategoryLists(PUBLISHER_CAT, 'PUBLISHER_LISTS')
+    
+    frames = [catalog_df, bookstore_df, classlist_df, publisher_df]
+    category_df = pd.concat(frames)
+    
+    category_df.to_csv(dir + "\\configuration.csv", index=False, encoding='utf-8')
 
 
-createConfigFile()	
 addPublisherFiles()
 addBookstoreList()
 addCatalogList()
-
+addClassList()
+createConfigFile()

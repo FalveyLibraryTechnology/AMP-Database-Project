@@ -2,6 +2,7 @@ import csv
 import datetime
 import json
 import os
+import sys
 import re
 import sqlite3
 import xlrd
@@ -27,13 +28,22 @@ cursor.execute("SELECT category_id FROM categories WHERE name=?", ("Publisher Li
 PUBLISHER_CAT = cursor.fetchone()[0]
 cursor.execute("SELECT category_id FROM categories WHERE name=?", ("Class List",))
 CLASS_CAT = cursor.fetchone()[0]
-    
+
+#create temp tables to fetch isbns of in use lists
+cursor.execute("CREATE TEMPORARY TABLE tmp_bookstore AS " + 
+               "Select isbn from lists_books where list_id in (select list_id from lists where category_id = ? and in_use = 1)", (BOOKSTORE_CAT,))
+               
+cursor.execute("CREATE TEMPORARY TABLE tmp_catalog AS " + 
+               "Select isbn from lists_books where list_id in (select list_id from lists where category_id = ? and in_use = 1)", (CATALOG_CAT,))
+
+cursor.execute("CREATE TEMPORARY TABLE tmp_publisher AS " + 
+               "Select isbn from lists_books where list_id in (select list_id from lists where category_id = ? and in_use = 1)", (PUBLISHER_CAT,))
+
 def booksInBookstoreListAlsoInCatalog(file):
 	cursor.execute("select * from books where isbn in " + 
-					"(select isbn from lists_books where list_id in (select list_id from lists where category_id = ? and in_use = 1)" + 
+					"(select * from tmp_bookstore" + 
 					" intersect " + 
-					"select isbn from lists_books where list_id in (select list_id from lists where category_id = ? and in_use = 1))", 
-                    (BOOKSTORE_CAT, CATALOG_CAT,))
+					"select * from tmp_catalog)")
 	q1 = cursor.fetchall()
 	
 	if not os.path.exists(reports_dir):
@@ -46,10 +56,9 @@ def booksInBookstoreListAlsoInCatalog(file):
 
 def booksInBookstoreListNotInCatalog(file):
 	cursor.execute("select * from books where isbn in " + 
-					"(select isbn from lists_books where list_id in (select list_id from lists where category_id = ? and in_use = 1)" + 
+					"(select * from tmp_bookstore" + 
 					" except " + 
-					"select isbn from lists_books where list_id in (select list_id from lists where category_id = ? and in_use = 1))", 
-                    (BOOKSTORE_CAT, CATALOG_CAT,))
+					"select * from tmp_catalog)")
 	q2 = cursor.fetchall()
 
 	if not os.path.exists(reports_dir):
@@ -61,10 +70,9 @@ def booksInBookstoreListNotInCatalog(file):
 	
 def booksInBothCatalogAndIn_UsePublisher(file):
 	cursor.execute("select * from books where isbn in " + 
-					"(select isbn from lists_books where list_id in (select list_id from lists where category_id = ? and in_use = 1)" + 
+					"(select * from tmp_catalog" + 
 					" intersect " + 
-					"select isbn from lists_books where list_id in (select list_id from lists where category_id = ? and in_use = 1))", 
-                    (CATALOG_CAT, PUBLISHER_CAT,))
+					"select * from tmp_publisher)")
 	q3 = cursor.fetchall()
 
 	if not os.path.exists(reports_dir):
@@ -76,10 +84,9 @@ def booksInBothCatalogAndIn_UsePublisher(file):
 	
 def booksInBookstoreListAlsoIn_UsePublisher(file):
 	cursor.execute("select * from books where isbn in " + 
-					"(select isbn from lists_books where list_id in (select list_id from lists where category_id = ? and in_use = 1)" + 
+					"(select * from tmp_bookstore" + 
 					" intersect " + 
-					"select isbn from lists_books where list_id in (select list_id from lists where category_id = ? and in_use = 1))", 
-                    (BOOKSTORE_CAT, PUBLISHER_CAT,))
+					"select * from tmp_publisher)")
 	q4 = cursor.fetchall()
 
 	if not os.path.exists(reports_dir):
@@ -91,13 +98,12 @@ def booksInBookstoreListAlsoIn_UsePublisher(file):
     
 def booksInBookstoreListNotInCatalogAndInPublisherList(file):
 	cursor.execute("select * from books where isbn in " + 
-					"(select isbn from lists_books where list_id in (select list_id from lists where category_id = ? and in_use = 1)" + 
+					"(select * from tmp_bookstore" + 
 					" except " + 
-					"select isbn from lists_books where list_id in (select list_id from lists where category_id = ? and in_use = 1))" + 
+					"select * from tmp_catalog)" + 
                     " intersect " + 
                     "select * from books where isbn in " + 
-                    "(select isbn from lists_books where list_id in (select list_id from lists where category_id = ? and in_use = 1))", 
-                    (BOOKSTORE_CAT, CATALOG_CAT, PUBLISHER_CAT,))
+                    "(select * from tmp_publisher)")
 	q2 = cursor.fetchall()
 
 	if not os.path.exists(reports_dir):
@@ -112,3 +118,8 @@ booksInBookstoreListNotInCatalog('r2_books_in_BookstoreList_Not_in_Catalog.csv')
 booksInBothCatalogAndIn_UsePublisher('r3_books_in_Catalog_And_In_Use_Publisher.csv')
 booksInBookstoreListAlsoIn_UsePublisher('r4_books_in_BookstoreList_Also_In_Use_Publisher.csv')
 booksInBookstoreListNotInCatalogAndInPublisherList('r5_books_in_BookstoreList_Not_in_Catalog_And_In_Publisher.csv')
+
+cursor.execute("drop table tmp_bookstore")
+cursor.execute("drop table tmp_catalog")
+cursor.execute("drop table tmp_publisher")
+conn.close()

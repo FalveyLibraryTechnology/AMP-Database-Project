@@ -13,7 +13,7 @@ from collections import OrderedDict
 from src.ProgressBar import ProgressBar
 from src.utils import getColumnsFromExcelFile, normalize_isbn, sortUnique
 
-NUKE = True
+NUKE = False
 dir = os.path.dirname(__file__)
 
 parser = argparse.ArgumentParser()
@@ -141,49 +141,102 @@ def addPublisherFiles():
 
 		
 def parseBookstoreList(filepath):
-	books = []
-	print(filepath)
-	
-	wb = xlrd.open_workbook(filepath)  
-	sheet = wb.sheet_by_index(0)
-	bar = ProgressBar(sheet.nrows-7, label="  parsing ")
+    print(filepath)
 
-	books_list = []
-	book = OrderedDict()
-	names = ['course', 'instructor', 'note', 'class start date', 'use']
-	prev_isbn = sheet.cell_value(8, 6)
-	for r in range(8, sheet.nrows + 1):
-		if r == sheet.nrows:
-			ordered_dictionary = [OrderedDict(zip(names, subl)) for subl in list_of_lists]
-			book['courses_ins'] = ordered_dictionary
-			books_list.append(book)
-			break
-		new_isbn = sheet.cell_value(r, 6)
-		row_values = sheet.row_values(r)
-		if new_isbn != "":
-			if new_isbn != prev_isbn:
-				ordered_dictionary = [OrderedDict(zip(names, subl)) for subl in list_of_lists]
-				book['courses_ins'] = ordered_dictionary
-				books_list.append(book)
-				book = OrderedDict()
-				prev_isbn = new_isbn
-			list_of_lists = []
-			book['author'] = row_values[0]
-			book['title'] = row_values[1]
-			book['ed'] = row_values[4]
-			book['cy'] = row_values[5]
-			book['isbn'] = row_values[6]
-			book['pub'] = row_values[9]
-			book['retail new price'] = row_values[10]
-			book['retail used price'] = row_values[11]
-			book['rental new price'] = row_values[12]
-			book['rental used price'] = row_values[13]
-		else:
-			ls = [row_values[0],row_values[2],row_values[3],row_values[7],row_values[8]]
-			list_of_lists.append(ls)
-		bar.update()
-	bar.finish()
-	return books_list
+    wb = xlrd.open_workbook(filepath)  
+    sheet = wb.sheet_by_index(0)
+
+    #Get the column header row
+    for rowidx in range(0,20):
+        row = sheet.row(rowidx)
+        find = False
+        for colidx, cell in enumerate(row):
+            if cell.value == "AUTHOR" :
+                startRow = rowidx
+                dataStartRow = startRow + 3
+                authorIdx = colidx
+                find = True
+                break
+        if find:
+            break
+    
+    #Get the column indexes
+    for rowidx in range(startRow, startRow + 3):
+        row = sheet.row(rowidx)
+        for colidx, cell in enumerate(row):
+            if type(cell.value) == str:
+                if cell.value == "TITLE" :
+                    titleIdx = colidx
+                elif cell.value == "EDITION" :
+                    editionIdx = colidx
+                elif cell.value == "ED" :
+                    edIdx = colidx
+                elif cell.value == "CY" :
+                    cyIdx = colidx
+                elif cell.value == "ISBN" :
+                    isbnIdx = colidx
+                elif cell.value == "PUB" :
+                    pubIdx = colidx
+                elif cell.value == "NOTE" :
+                    noteIdx = colidx
+                elif cell.value == "NEW" :
+                    if "RETAIL" in sheet.cell(rowidx-1, colidx).value :
+                        retailNewIdx = colidx
+                    else :
+                        rentalNewIdx = colidx
+                elif cell.value == "USED" :
+                    if "RETAIL" in sheet.cell(rowidx-1, colidx).value or "RETAIL" in sheet.cell(rowidx-1, colidx-1).value :
+                        retailUsedIdx = colidx
+                    else :
+                        rentalUsedIdx = colidx
+                elif cell.value == "COURSE" :
+                    courseIdx = colidx
+                elif cell.value == "INSTRUCTOR" :
+                    instructorIdx = colidx
+                elif "CLASS START" in cell.value :
+                        clsStartIdx = colidx
+                elif cell.value == "USE" :
+                    useIdx = colidx
+
+    books = []
+    bar = ProgressBar(sheet.nrows-startRow, label="  parsing ")
+
+    books_list = []
+    book = OrderedDict()
+    names = ['course', 'instructor', 'note', 'class start date', 'use']
+    prev_isbn = sheet.cell_value(dataStartRow, isbnIdx)
+    for r in range(dataStartRow, sheet.nrows + 1):
+        if r == sheet.nrows:
+            ordered_dictionary = [OrderedDict(zip(names, subl)) for subl in list_of_lists]
+            book['courses_ins'] = ordered_dictionary
+            books_list.append(book)
+            break
+        new_isbn = sheet.cell_value(r, isbnIdx)
+        row_values = sheet.row_values(r)
+        if new_isbn != "":
+            if new_isbn != prev_isbn:
+                ordered_dictionary = [OrderedDict(zip(names, subl)) for subl in list_of_lists]
+                book['courses_ins'] = ordered_dictionary
+                books_list.append(book)
+                book = OrderedDict()
+                prev_isbn = new_isbn
+            list_of_lists = []
+            book['author'] = row_values[authorIdx]
+            book['title'] = row_values[titleIdx]
+            book['ed'] = row_values[edIdx]
+            book['cy'] = row_values[cyIdx]
+            book['isbn'] = row_values[isbnIdx]
+            book['pub'] = row_values[pubIdx]
+            book['retail new price'] = row_values[retailNewIdx]
+            book['retail used price'] = row_values[retailUsedIdx]
+            book['rental new price'] = row_values[rentalNewIdx]
+            book['rental used price'] = row_values[rentalUsedIdx]
+        else:
+            ls = [row_values[courseIdx],row_values[instructorIdx],row_values[noteIdx],row_values[clsStartIdx],row_values[useIdx]]
+            list_of_lists.append(ls)
+        bar.update()
+    bar.finish()
+    return books_list
 
 
 def addBookstoreList():
@@ -209,6 +262,7 @@ def addBookstoreList():
             books = json.load(filepath)
         else: # Excel
             books = parseBookstoreList(filepath)
+
         bar = ProgressBar(len(books), label="  saving (%d) " % len(books))
         for book in books:
             cursor.execute("SELECT isbn FROM books WHERE isbn=?", (book["isbn"],))

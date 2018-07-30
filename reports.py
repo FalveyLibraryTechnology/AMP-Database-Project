@@ -13,6 +13,8 @@ from src.ProgressBar import ProgressBar
 from src.utils import getColumnsFromExcelFile, normalize_isbn, sortUnique
 
 dir = os.path.dirname(__file__)
+if not dir:
+	dir = "."
 reports_dir = dir + '\\Reports'
 
 # Make and Reset database
@@ -30,22 +32,22 @@ cursor.execute("SELECT category_id FROM categories WHERE name=?", ("Class List",
 CLASS_CAT = cursor.fetchone()[0]
 
 #create temp tables to fetch isbns of in use lists
-cursor.execute("CREATE TEMPORARY TABLE tmp_bookstore AS " + 
+cursor.execute("CREATE TEMPORARY TABLE tmp_bookstore AS " +
                "Select isbn from lists_books where list_id in (select list_id from lists where category_id = ? and in_use = 1)", (BOOKSTORE_CAT,))
-               
-cursor.execute("CREATE TEMPORARY TABLE tmp_catalog AS " + 
+
+cursor.execute("CREATE TEMPORARY TABLE tmp_catalog AS " +
                "Select isbn from lists_books where list_id in (select list_id from lists where category_id = ? and in_use = 1)", (CATALOG_CAT,))
 
-cursor.execute("CREATE TEMPORARY TABLE tmp_publisher AS " + 
+cursor.execute("CREATE TEMPORARY TABLE tmp_publisher AS " +
                "Select isbn from lists_books where list_id in (select list_id from lists where category_id = ? and in_use = 1)", (PUBLISHER_CAT,))
 
 def booksInBookstoreListAlsoInCatalog(file):
-	cursor.execute("select * from books where isbn in " + 
-					"(select * from tmp_bookstore" + 
-					" intersect " + 
+	cursor.execute("select * from books where isbn in " +
+					"(select * from tmp_bookstore" +
+					" intersect " +
 					"select * from tmp_catalog)")
 	q1 = cursor.fetchall()
-	
+
 	if not os.path.exists(reports_dir):
 			os.makedirs(reports_dir)
 
@@ -55,9 +57,9 @@ def booksInBookstoreListAlsoInCatalog(file):
 
 
 def booksInBookstoreListNotInCatalog(file):
-	cursor.execute("select * from books where isbn in " + 
-					"(select * from tmp_bookstore" + 
-					" except " + 
+	cursor.execute("select * from books where isbn in " +
+					"(select * from tmp_bookstore" +
+					" except " +
 					"select * from tmp_catalog)")
 	q2 = cursor.fetchall()
 
@@ -67,11 +69,11 @@ def booksInBookstoreListNotInCatalog(file):
 	df = pd.DataFrame(q2, columns=['isbn', 'title', 'year', 'electronic'])
 
 	df.to_csv(reports_dir + "\\" + file, index=False, encoding='utf-8')
-	
+
 def booksInBothCatalogAndIn_UsePublisher(file):
-	cursor.execute("select * from books where isbn in " + 
-					"(select * from tmp_catalog" + 
-					" intersect " + 
+	cursor.execute("select * from books where isbn in " +
+					"(select * from tmp_catalog" +
+					" intersect " +
 					"select * from tmp_publisher)")
 	q3 = cursor.fetchall()
 
@@ -81,11 +83,11 @@ def booksInBothCatalogAndIn_UsePublisher(file):
 	df = pd.DataFrame(q3, columns=['isbn', 'title', 'year', 'electronic'])
 
 	df.to_csv(reports_dir + "\\" + file, index=False, encoding='utf-8')
-	
+
 def booksInBookstoreListAlsoIn_UsePublisher(file):
-	cursor.execute("select * from books where isbn in " + 
-					"(select * from tmp_bookstore" + 
-					" intersect " + 
+	cursor.execute("select * from books where isbn in " +
+					"(select * from tmp_bookstore" +
+					" intersect " +
 					"select * from tmp_publisher)")
 	q4 = cursor.fetchall()
 
@@ -95,14 +97,14 @@ def booksInBookstoreListAlsoIn_UsePublisher(file):
 	df = pd.DataFrame(q4, columns=['isbn', 'title', 'year', 'electronic'])
 
 	df.to_csv(reports_dir + "\\" + file, index=False, encoding='utf-8')
-    
+
 def booksInBookstoreListNotInCatalogAndInPublisherList(file):
-	cursor.execute("select * from books where isbn in " + 
-					"(select * from tmp_bookstore" + 
-					" except " + 
-					"select * from tmp_catalog)" + 
-                    " intersect " + 
-                    "select * from books where isbn in " + 
+	cursor.execute("select * from books where isbn in " +
+					"(select * from tmp_bookstore" +
+					" except " +
+					"select * from tmp_catalog)" +
+                    " intersect " +
+                    "select * from books where isbn in " +
                     "(select * from tmp_publisher)")
 	q2 = cursor.fetchall()
 

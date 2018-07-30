@@ -7,6 +7,7 @@ import re
 import sqlite3
 import xlrd
 import pandas as pd
+import argparse
 from collections import OrderedDict
 
 from src.ProgressBar import ProgressBar
@@ -17,9 +18,24 @@ if not dir:
 	dir = "."
 reports_dir = dir + '\\Reports'
 
+parser = argparse.ArgumentParser()
+parser.add_argument("-db", "--databasename", required=True, help="Database name")
+args = parser.parse_args()
+
+db_path = dir + "\\tmp\\" + args.databasename + ".sqlite"
+config_path = dir + "\\configuration.csv"
+
+# Check if db file exists
+if os.path.exists(db_path):
+	# Make and Reset database
+	conn = sqlite3.connect(db_path)
+	cursor = conn.cursor()
+else:
+	print("No such database file exists. Please run setup_db.py to create database \'%s\' first" % (args.databasename))
+
 # Make and Reset database
-conn = sqlite3.connect(dir + "\\tmp\\sample_db.sqlite")
-cursor = conn.cursor()
+#conn = sqlite3.connect(dir + "\\tmp\\sample_db.sqlite")
+#cursor = conn.cursor()
 
 #Fetch category Ids
 cursor.execute("SELECT category_id FROM categories WHERE name=?", ("Bookstore List",))

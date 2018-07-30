@@ -13,7 +13,7 @@ from collections import OrderedDict
 from src.ProgressBar import ProgressBar
 from src.utils import getColumnsFromExcelFile, normalize_isbn, sortUnique
 
-NUKE = True
+NUKE = False
 dir = os.path.dirname(__file__)
 if not dir:
     dir = "."

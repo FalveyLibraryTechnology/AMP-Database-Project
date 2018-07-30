@@ -1,5 +1,6 @@
-# SOLR SOURCE: http://hermes.library.villanova.edu:8082/solr/biblio/select?fl=isbn,title,publishDate&indent=on&q=isbn:*&wt=csv&rows=99999
+# SOLR SOURCE: http://hermes.library.villanova.edu:8082/solr/biblio/select?fl=isbn,title,publishDate&indent=on&q=isbn:*&wt=csv&rows=999999
 
+import urllib.request
 import csv
 import os
 import sys
@@ -9,7 +10,18 @@ items = []
 
 dir = os.path.dirname(__file__)
 
-with open(dir + "\\isbns-solr-may-2018.csv", "r", encoding="utf-8") as csvfile:
+url = 'http://hermes.library.villanova.edu:8082/solr/biblio/select?fl=isbn,title,publishDate&indent=on&q=isbn:*&wt=csv&rows=999999'
+request = urllib.request.Request(url)
+response = urllib.request.urlopen(request)
+html = response.read()
+
+isbnsFile = 'isbns-solr-june-2018.csv'
+normalizedISBNSFile = 'normalized-from-solr-june-2018.csv'
+
+with open(dir + '\\' + isbnsFile, 'wb') as f:
+    f.write(html)
+
+with open(dir + "\\" + isbnsFile, "r", encoding="utf-8") as csvfile:
     records = csv.reader(csvfile)
     for line in records:
         isbns = line[0].strip().split(",")
@@ -21,6 +33,6 @@ with open(dir + "\\isbns-solr-may-2018.csv", "r", encoding="utf-8") as csvfile:
                 pass
 
 catalog_dir = dir + '\\CatalogFiles'
-with open(catalog_dir + "\\normalized-from-solr-may-2018.csv", "w", newline='', encoding="utf-8") as outfile:
+with open(catalog_dir + "\\" + normalizedISBNSFile, "w", newline='', encoding="utf-8") as outfile:
     writer = csv.writer(outfile)
     writer.writerows(items)

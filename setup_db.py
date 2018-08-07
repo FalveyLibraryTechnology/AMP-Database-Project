@@ -15,6 +15,8 @@ from src.utils import getColumnsFromExcelFile, normalize_isbn, sortUnique
 
 NUKE = False
 dir = os.path.dirname(__file__)
+if not dir:
+    dir = "."
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-db", "--databasename", required=True, help="Database name")
@@ -27,7 +29,11 @@ if NUKE and os.path.exists(db_path):
     os.remove(db_path)
 
 # Make and Reset database
-conn = sqlite3.connect(db_path)
+try:
+    conn = sqlite3.connect(db_path)
+except sqlite3.OperationalError:
+    print("Unable to open database: %s" % db_path)
+    exit(1)
 cursor = conn.cursor()
 if NUKE:
     init_sql = open(dir + "\\db_tables.sql", "r").read()
@@ -139,11 +145,11 @@ def addPublisherFiles():
         conn.commit()
 
 
-		
+
 def parseBookstoreList(filepath):
     print(filepath)
 
-    wb = xlrd.open_workbook(filepath)  
+    wb = xlrd.open_workbook(filepath)
     sheet = wb.sheet_by_index(0)
 
     #Get the column header row
@@ -159,7 +165,7 @@ def parseBookstoreList(filepath):
                 break
         if find:
             break
-    
+
     #Get the column indexes
     for rowidx in range(startRow, startRow + 3):
         row = sheet.row(rowidx)
@@ -286,7 +292,7 @@ def addBookstoreList():
         bar.finish()
         conn.commit()
 
-		
+
 def parseCatalogCSVList(filepath):
     print(filepath)
     books_list = []
@@ -324,7 +330,7 @@ def addCatalogList():
         print(file)
         filepath = os.path.join(catalog_dir, file)
         if file[-3:] == "csv":
-            books = parseCatalogCSVList(filepath)      
+            books = parseCatalogCSVList(filepath)
         elif file[-4:] == "json":
             books = json.load(filepath)
         else: # Excel
@@ -376,7 +382,7 @@ def parseClassJsonList(filepath):
     bar.finish()
     return cls_list
 
-    
+
 def addClassList():
     class_dir = dir + '\\ClassList'
     classlist_files = [file.name for file in os.scandir(class_dir) if file.is_file()]
@@ -400,11 +406,11 @@ def addClassList():
                 classes = parseClassJsonList(filepath)
             else: # Excel
                 print ("TODO excel processing")
-            bar = ProgressBar(len(classes), label="  saving (%d) " % len(classes))          
+            bar = ProgressBar(len(classes), label="  saving (%d) " % len(classes))
             for cls in classes:
                 cursor.execute("SELECT course_code FROM courses WHERE course_code=?", (cls["code"],)) #chk if course_code is in courses
                 CODE = cursor.fetchone() #course_code = ...
-                if CODE: 
+                if CODE:
                     CODE = CODE[0]
                 else:
                     #insert into courses
@@ -420,24 +426,24 @@ def addClassList():
                         else:
                             cursor.execute("INSERT INTO courses_books(isbn, course_code, type, price) VALUES (?,?,?,?)",
                                             (book["isbn"], cls["code"], book["type"], book["price"]))
-                                            
+
                         cursor.execute("SELECT 1 FROM lists_books WHERE isbn=? and list_id=?", (book["isbn"], FILE_ID, ))
                         if cursor.fetchone():
                                 continue
                         else:
                             cursor.execute("INSERT INTO lists_books(isbn, list_id) VALUES (?,?)",
-                                        (book["isbn"], FILE_ID)) 
-                        
+                                        (book["isbn"], FILE_ID))
+
                 bar.update()
             bar.finish()
             conn.commit()
-                                        
-                                        
+
+
 def getCategoryLists(CAT_ID, CAT_NAME):
 	#Get category files
 	cursor.execute("select category_id,list_id,name from lists where category_id=?", (CAT_ID,))
 	category_list = cursor.fetchall()
-	
+
 	category_df = pd.DataFrame(([cat[0],cat[1],cat[2]] for cat in category_list), columns=['category_id', 'list_id', 'list_name'])
 	category_df[['in_use','category']] = pd.DataFrame([['No',CAT_NAME]], index=category_df.index)
 	category_df = category_df[['in_use', 'category_id', 'category', 'list_id', 'list_name']]
@@ -451,10 +457,10 @@ def createConfigFile():
     bookstore_df = getCategoryLists(BOOKSTORE_CAT, 'BOOKSTORE_LISTS')
     classlist_df = getCategoryLists(CLASS_CAT, 'CLASS_LISTS')
     publisher_df = getCategoryLists(PUBLISHER_CAT, 'PUBLISHER_LISTS')
-    
+
     frames = [catalog_df, bookstore_df, classlist_df, publisher_df]
     category_df = pd.concat(frames)
-    
+
     category_df.to_csv(dir + "\\configuration.csv", index=False, encoding='utf-8')
 
 

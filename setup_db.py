@@ -13,7 +13,7 @@ from collections import OrderedDict
 from src.ProgressBar import ProgressBar
 from src.utils import getColumnsFromExcelFile, normalize_isbn, sortUnique
 
-NUKE = False
+NUKE = True
 dir = os.path.dirname(__file__)
 if not dir:
     dir = "."
@@ -58,13 +58,17 @@ else:
     CLASS_CAT = cursor.fetchone()[0]
 
 
+def normalize_course_code(code):
+    return code.replace(" - ", " ").strip()
+
+
 def parsePublisherCSV(filepath):
     pass
 
 
 def parsePublisherExcel(filepath):
     books = []
-    print (filepath)
+    print(filepath)
     rows = getColumnsFromExcelFile(
         ["Title", "Electronic ISBN", "Print ISBN", "Pub Year"],
         filepath
@@ -116,10 +120,10 @@ def addPublisherFiles():
         books = []
         filepath = os.path.join(publisher_dir, file)
         if file[-3:] == "csv":
-            print ("TODO txt processing")
+            print("TODO txt processing")
         elif file[-4:] == "json":
             books = json.load(filepath)
-        else: # Excel
+        else:  # Excel
             books = parsePublisherExcel(filepath)
         bar = ProgressBar(len(books), label="  saving (%d) " % len(books))
         for book in books:
@@ -145,19 +149,18 @@ def addPublisherFiles():
         conn.commit()
 
 
-
 def parseBookstoreList(filepath):
     print(filepath)
 
     wb = xlrd.open_workbook(filepath)
     sheet = wb.sheet_by_index(0)
 
-    #Get the column header row
-    for rowidx in range(0,20):
+    # Get the column header row
+    for rowidx in range(0, 20):
         row = sheet.row(rowidx)
         find = False
         for colidx, cell in enumerate(row):
-            if cell.value == "AUTHOR" :
+            if cell.value == "AUTHOR":
                 startRow = rowidx
                 dataStartRow = startRow + 3
                 authorIdx = colidx
@@ -166,46 +169,47 @@ def parseBookstoreList(filepath):
         if find:
             break
 
-    #Get the column indexes
+    # Get the column indexes
     for rowidx in range(startRow, startRow + 3):
         row = sheet.row(rowidx)
         for colidx, cell in enumerate(row):
             if type(cell.value) == str:
-                if cell.value == "TITLE" :
+                if cell.value == "TITLE":
                     titleIdx = colidx
-                elif cell.value == "EDITION" :
+                elif cell.value == "EDITION":
                     editionIdx = colidx
-                elif cell.value == "ED" :
+                elif cell.value == "ED":
                     edIdx = colidx
-                elif cell.value == "CY" :
+                elif cell.value == "CY":
                     cyIdx = colidx
-                elif cell.value == "ISBN" :
+                elif cell.value == "ISBN":
                     isbnIdx = colidx
-                elif cell.value == "PUB" :
+                elif cell.value == "PUB":
                     pubIdx = colidx
-                elif cell.value == "NOTE" :
+                elif cell.value == "NOTE":
                     noteIdx = colidx
-                elif cell.value == "NEW" :
-                    if "RETAIL" in sheet.cell(rowidx-1, colidx).value :
+                elif cell.value == "NEW":
+                    if "RETAIL" in sheet.cell(rowidx - 1, colidx).value:
                         retailNewIdx = colidx
-                    else :
+                    else:
                         rentalNewIdx = colidx
-                elif cell.value == "USED" :
-                    if "RETAIL" in sheet.cell(rowidx-1, colidx).value or "RETAIL" in sheet.cell(rowidx-1, colidx-1).value :
+                elif cell.value == "USED":
+                    if "RETAIL" in sheet.cell(rowidx - 1, colidx).value or "RETAIL" in sheet.cell(rowidx - 1,
+                                                                                                  colidx - 1).value:
                         retailUsedIdx = colidx
-                    else :
+                    else:
                         rentalUsedIdx = colidx
-                elif cell.value == "COURSE" :
+                elif cell.value == "COURSE":
                     courseIdx = colidx
-                elif cell.value == "INSTRUCTOR" :
+                elif cell.value == "INSTRUCTOR":
                     instructorIdx = colidx
-                elif "CLASS START" in cell.value :
-                        clsStartIdx = colidx
-                elif cell.value == "USE" :
+                elif "CLASS START" in cell.value:
+                    clsStartIdx = colidx
+                elif cell.value == "USE":
                     useIdx = colidx
 
     books = []
-    bar = ProgressBar(sheet.nrows-startRow, label="  parsing ")
+    bar = ProgressBar(sheet.nrows - startRow, label="  parsing ")
 
     books_list = []
     book = OrderedDict()
@@ -238,7 +242,8 @@ def parseBookstoreList(filepath):
             book['rental new price'] = row_values[rentalNewIdx]
             book['rental used price'] = row_values[rentalUsedIdx]
         else:
-            ls = [row_values[courseIdx],row_values[instructorIdx],row_values[noteIdx],row_values[clsStartIdx],row_values[useIdx]]
+            ls = [row_values[courseIdx], row_values[instructorIdx], row_values[noteIdx], row_values[clsStartIdx],
+                  row_values[useIdx]]
             list_of_lists.append(ls)
         bar.update()
     bar.finish()
@@ -263,31 +268,43 @@ def addBookstoreList():
         print(file)
         filepath = os.path.join(bookstore_dir, file)
         if file[-3:] == "csv":
-            print ("TODO txt processing")
+            print("TODO txt processing")
         elif file[-4:] == "json":
             books = json.load(filepath)
-        else: # Excel
+        else:  # Excel
             books = parseBookstoreList(filepath)
 
         bar = ProgressBar(len(books), label="  saving (%d) " % len(books))
         for book in books:
             cursor.execute("SELECT isbn FROM books WHERE isbn=?", (book["isbn"],))
-            ISBN = cursor.fetchone()
-            if ISBN:
+            if cursor.fetchone():
                 cursor.execute("SELECT 1 FROM lists_books WHERE isbn=? AND list_id=?", (book["isbn"], FILE_ID))
                 if cursor.fetchone():
                     continue
-                ISBN = ISBN[0]
             else:
                 cursor.execute(
                     "INSERT INTO books(isbn, title, year) VALUES (?,?,?)",
                     (book["isbn"], book["title"], book["cy"])
                 )
-                ISBN = book["isbn"]
             cursor.execute(
                 "INSERT INTO lists_books(isbn, list_id) VALUES (?,?)",
-                (ISBN, FILE_ID)
+                (book["isbn"], FILE_ID)
             )
+            if (len(book["courses_ins"]) > 0):
+                for course in book["courses_ins"]:
+                    # Courses
+                    code = normalize_course_code(course["course"])
+                    cursor.execute("SELECT 1 FROM courses WHERE course_code=?",
+                                   (code,))
+                    if not cursor.fetchone():
+                        cursor.execute("INSERT INTO courses(course_code, professor_name) VALUES (?,?)",
+                                       (code, course["instructor"]))
+                    # Course books
+                    cursor.execute("SELECT 1 FROM courses_books WHERE isbn=? and course_code=?",
+                                   (book["isbn"], code,))
+                    if not cursor.fetchone():
+                        cursor.execute("INSERT INTO courses_books(isbn, course_code) VALUES (?,?)",
+                                       (book["isbn"], code))
             bar.update()
         bar.finish()
         conn.commit()
@@ -333,8 +350,8 @@ def addCatalogList():
             books = parseCatalogCSVList(filepath)
         elif file[-4:] == "json":
             books = json.load(filepath)
-        else: # Excel
-            print ("TODO excel processing")
+        else:  # Excel
+            print("TODO excel processing")
         bar = ProgressBar(len(books), label="  saving (%d) " % len(books))
         for book in books:
             cursor.execute("SELECT isbn FROM books WHERE isbn=?", (book["isbn"],))
@@ -365,7 +382,7 @@ def parseClassJsonList(filepath):
     f.close()
 
     cls_list = []
-    print (filepath)
+    print(filepath)
     bar = ProgressBar(len(cls_json), label="  parsing ")
     for row in cls_json:
         cls = OrderedDict()
@@ -374,9 +391,11 @@ def parseClassJsonList(filepath):
         cls['prof_email'] = row['prof_email']
         cls['num_stu'] = row['students']
         cls['books'] = []
-        if(len(row['books']) > 0):
+        '''
+        if (len(row['books']) > 0):
             ordered_dictionary = [r for r in row['books']]
             cls['books'] = ordered_dictionary
+        '''
         cls_list.append(cls)
         bar.update()
     bar.finish()
@@ -387,13 +406,13 @@ def addClassList():
     class_dir = dir + '\\ClassList'
     classlist_files = [file.name for file in os.scandir(class_dir) if file.is_file()]
     for file in classlist_files:
-        if re.match('^\d+.*-with-books.json$', file):
+        if re.match('^\d+.*.json$', file):
             print(file)
             # Save file as list
             cursor.execute("SELECT 1 FROM lists WHERE name=?", (file,))
             if cursor.fetchone():
                 continue
-            cursor.execute( #insert into lists
+            cursor.execute(  # insert into lists
                 "INSERT INTO lists(name, updated, category_id) VALUES (?,?,?)",
                 (file, datetime.datetime.now(), CLASS_CAT)
             )
@@ -401,38 +420,25 @@ def addClassList():
             classes = []
             filepath = os.path.join(class_dir, file)
             if file[-3:] == "csv":
-                print ("TODO txt processing")
+                print("TODO txt processing")
             elif file[-4:] == "json":
                 classes = parseClassJsonList(filepath)
-            else: # Excel
-                print ("TODO excel processing")
+            else:  # Excel
+                print("TODO excel processing")
             bar = ProgressBar(len(classes), label="  saving (%d) " % len(classes))
             for cls in classes:
-                cursor.execute("SELECT course_code FROM courses WHERE course_code=?", (cls["code"],)) #chk if course_code is in courses
-                CODE = cursor.fetchone() #course_code = ...
-                if CODE:
-                    CODE = CODE[0]
+                code = normalize_course_code(cls["code"])
+                cursor.execute("SELECT course_code FROM courses WHERE course_code=?",
+                               (code,))  # chk if course_code is in courses
+                if cursor.fetchone():  # course_code = ...
+                    cursor.execute(
+                        "UPDATE courses SET num_students=?, professor_name=?, professor_email=? WHERE course_code=?",
+                        (cls["num_stu"], cls["prof_name"], cls["prof_email"], code))
                 else:
-                    #insert into courses
-                    cursor.execute("INSERT INTO courses(course_code, professor_name, professor_email, num_students) VALUES (?,?,?,?)",
-                                    (cls["code"], cls["prof_name"], cls["prof_email"], cls["num_stu"]))
-                    CODE = cls["code"]
-                if(len(cls["books"]) > 0):
-                    for book in cls["books"]:
-                        cursor.execute("SELECT 1 FROM courses_books WHERE isbn=? and course_code=?", (book["isbn"], cls["code"],))
-                        ISBN = cursor.fetchone()
-                        if ISBN:
-                            pass
-                        else:
-                            cursor.execute("INSERT INTO courses_books(isbn, course_code, type, price) VALUES (?,?,?,?)",
-                                            (book["isbn"], cls["code"], book["type"], book["price"]))
-
-                        cursor.execute("SELECT 1 FROM lists_books WHERE isbn=? and list_id=?", (book["isbn"], FILE_ID, ))
-                        if cursor.fetchone():
-                                continue
-                        else:
-                            cursor.execute("INSERT INTO lists_books(isbn, list_id) VALUES (?,?)",
-                                        (book["isbn"], FILE_ID))
+                    # insert into courses
+                    cursor.execute(
+                        "INSERT INTO courses(num_students, professor_name, professor_email, course_code) VALUES (?,?,?,?)",
+                        (cls["num_stu"], cls["prof_name"], cls["prof_email"], code))
 
                 bar.update()
             bar.finish()
@@ -440,16 +446,17 @@ def addClassList():
 
 
 def getCategoryLists(CAT_ID, CAT_NAME):
-	#Get category files
-	cursor.execute("select category_id,list_id,name from lists where category_id=?", (CAT_ID,))
-	category_list = cursor.fetchall()
+    # Get category files
+    cursor.execute("select category_id,list_id,name from lists where category_id=?", (CAT_ID,))
+    category_list = cursor.fetchall()
 
-	category_df = pd.DataFrame(([cat[0],cat[1],cat[2]] for cat in category_list), columns=['category_id', 'list_id', 'list_name'])
-	category_df[['in_use','category']] = pd.DataFrame([['No',CAT_NAME]], index=category_df.index)
-	category_df = category_df[['in_use', 'category_id', 'category', 'list_id', 'list_name']]
+    category_df = pd.DataFrame(([cat[0], cat[1], cat[2]] for cat in category_list),
+                               columns=['category_id', 'list_id', 'list_name'])
+    category_df[['in_use', 'category']] = pd.DataFrame([['No', CAT_NAME]], index=category_df.index)
+    category_df = category_df[['in_use', 'category_id', 'category', 'list_id', 'list_name']]
 
-	conn.commit()
-	return category_df
+    conn.commit()
+    return category_df
 
 
 def createConfigFile():
@@ -464,8 +471,8 @@ def createConfigFile():
     category_df.to_csv(dir + "\\configuration.csv", index=False, encoding='utf-8')
 
 
-addPublisherFiles()
 addBookstoreList()
 addCatalogList()
 addClassList()
+addPublisherFiles()
 createConfigFile()

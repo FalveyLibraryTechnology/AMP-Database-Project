@@ -9,14 +9,16 @@ from src.utils import normalize_isbn
 items = []
 
 dir = os.path.dirname(__file__)
+if not dir:
+    dir = "."
 
-url = 'http://hermes.library.villanova.edu:8082/solr/biblio/select?fl=isbn,title,publishDate&indent=on&q=isbn:*&wt=csv&rows=999999'
+url = 'http://hermes.library.villanova.edu:8082/solr/biblio/select?fl=isbn,title,publishDate,format&indent=on&q=isbn:*&wt=csv&rows=999999'
 request = urllib.request.Request(url)
 response = urllib.request.urlopen(request)
 html = response.read()
 
-isbnsFile = 'isbns-solr-june-2018.csv'
-normalizedISBNSFile = 'normalized-from-solr-june-2018.csv'
+isbnsFile = 'isbns-solr-8-7-2018.csv'
+normalizedISBNSFile = 'normalized-from-solr-8-7-2018.csv'
 
 with open(dir + '\\' + isbnsFile, 'wb') as f:
     f.write(html)
@@ -28,7 +30,7 @@ with open(dir + "\\" + isbnsFile, "r", encoding="utf-8") as csvfile:
         for isbn in isbns:
             try:
                 norm_isbn = normalize_isbn(isbn)
-                items.append((norm_isbn, line[1], line[2]))
+                items.append((norm_isbn, *line[1:4]))
             except:
                 pass
 

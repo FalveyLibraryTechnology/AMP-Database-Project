@@ -319,9 +319,10 @@ def parseCatalogCSVList(filepath):
     bar = ProgressBar(len(your_list), label="  parsing ")
     for ls in your_list:
         book = OrderedDict()
-        book['isbn'] = normalize_isbn(ls[0])
-        book['title'] = ls[1][:-2]
-        book['pub_yr'] = ls[2]
+        book["isbn"] = normalize_isbn(ls[0])
+        book["title"] = ls[1][:-2]
+        book["pub_yr"] = ls[2]
+        book["electronic"] = "Online" in ls[3] if len(ls) > 3 else ""
         books_list.append(book)
         bar.update()
     bar.finish()
@@ -363,8 +364,8 @@ def addCatalogList():
                 ISBN = ISBN[0]
             else:
                 cursor.execute(
-                    "INSERT INTO books(isbn, title, year) VALUES (?,?,?)",
-                    (book["isbn"], book["title"], book["pub_yr"])
+                    "INSERT INTO books(isbn, title, year, electronic) VALUES (?,?,?,?)",
+                    (book["isbn"], book["title"], book["pub_yr"], book["electronic"])
                 )
                 ISBN = book["isbn"]
             cursor.execute(
@@ -471,8 +472,8 @@ def createConfigFile():
     category_df.to_csv(dir + "\\configuration.csv", index=False, encoding='utf-8')
 
 
-addBookstoreList()
 addCatalogList()
+addBookstoreList()
 addClassList()
 addPublisherFiles()
 createConfigFile()

@@ -26,6 +26,7 @@ db_path = dir + "\\tmp\\" + args.databasename + ".sqlite"
 
 # Check if exists
 if NUKE and os.path.exists(db_path):
+    print("Erasing all content in %s" % args.databasename)
     os.remove(db_path)
 
 # Make and Reset database
@@ -322,7 +323,8 @@ def parseCatalogCSVList(filepath):
         book["isbn"] = normalize_isbn(ls[0])
         book["title"] = ls[1][:-2]
         book["pub_yr"] = ls[2]
-        book["electronic"] = "Online" in ls[3] if len(ls) > 3 else ""
+        book["electronic"] = "Online" in ls[3] if len(ls) > 3 else None
+        book["callnumber"] = ls[4] if len(ls) > 4 else None
         books_list.append(book)
         bar.update()
     bar.finish()
@@ -345,7 +347,6 @@ def addCatalogList():
         FILE_ID = cursor.lastrowid
 
         books = []
-        print(file)
         filepath = os.path.join(catalog_dir, file)
         if file[-3:] == "csv":
             books = parseCatalogCSVList(filepath)
@@ -364,8 +365,8 @@ def addCatalogList():
                 ISBN = ISBN[0]
             else:
                 cursor.execute(
-                    "INSERT INTO books(isbn, title, year, electronic) VALUES (?,?,?,?)",
-                    (book["isbn"], book["title"], book["pub_yr"], book["electronic"])
+                    "INSERT INTO books(isbn, title, year, electronic, callnumber) VALUES (?,?,?,?,?)",
+                    (book["isbn"], book["title"], book["pub_yr"], book["electronic"], book["callnumber"])
                 )
                 ISBN = book["isbn"]
             cursor.execute(
@@ -475,5 +476,5 @@ def createConfigFile():
 addCatalogList()
 addBookstoreList()
 addClassList()
-addPublisherFiles()
+# addPublisherFiles()
 createConfigFile()

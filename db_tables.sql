@@ -13,7 +13,8 @@ CREATE TABLE books
     isbn       VARCHAR(13) PRIMARY KEY,
     title      VARCHAR,
     year       DATE,
-    electronic BIT
+    electronic BIT,
+    callnumber VARCHAR
 );
 
 CREATE TABLE categories

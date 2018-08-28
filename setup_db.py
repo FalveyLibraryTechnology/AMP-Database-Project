@@ -331,6 +331,46 @@ def parseCatalogCSVList(filepath):
     return books_list
 
 
+# Specialized for JSTOR
+def addCatalogJSTORExcel(filepath):
+    books = []
+    print(filepath)
+    rows = getColumnsFromExcelFile(
+        ["Book title", "eISBN", "ISBN", "Copyright year"],
+        filepath
+    )
+    bar = ProgressBar(len(rows), label="  parsing ")
+    for row in rows:
+        title = None
+        if "Book title" in row and row["Book title"]:
+            title = row["Book title"]
+        pub_year = None
+        if "Copyright year" in row and row["Copyright year"]:
+            try:
+                pub_year = int(row["Copyright year"])
+            except ValueError:
+                pass
+        if "eISBN" in row and row["eISBN"]:
+            books.append({
+                "title": title,
+                "pub_yr": pub_year,
+                "isbn": normalize_isbn(row["eISBN"]),
+                "electronic": True,
+                "callnumber": None
+            })
+        if "ISBN" in row and row["ISBN"]:
+            books.append({
+                "title": title,
+                "pub_yr": pub_year,
+                "isbn": normalize_isbn(row["ISBN"]),
+                "electronic": True, # All JSTOR are electronic
+                "callnumber": None
+            })
+        bar.update()
+    bar.finish()
+    return books
+
+
 def addCatalogList():
     catalog_dir = dir + '\\CatalogFiles'
     bookstore_files = [file.name for file in os.scandir(catalog_dir) if file.is_file()]
@@ -353,7 +393,7 @@ def addCatalogList():
         elif file[-4:] == "json":
             books = json.load(filepath)
         else:  # Excel
-            print("TODO excel processing")
+            books = addCatalogJSTORExcel(filepath)
         bar = ProgressBar(len(books), label="  saving (%d) " % len(books))
         for book in books:
             cursor.execute("SELECT isbn FROM books WHERE isbn=?", (book["isbn"],))

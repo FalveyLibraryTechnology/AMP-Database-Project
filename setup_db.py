@@ -114,7 +114,7 @@ def addPublisherFiles():
             continue
         cursor.execute(
             "INSERT INTO lists(name, updated, in_use, category_id) VALUES (?,?,?,?)",
-            (file, datetime.datetime.now(), True, PUBLISHER_CAT)
+            (file, datetime.datetime.now(), False, PUBLISHER_CAT)
         )
         FILE_ID = cursor.lastrowid
 
@@ -261,7 +261,7 @@ def addBookstoreList():
             continue
         cursor.execute(
             "INSERT INTO lists(name, updated, in_use, category_id) VALUES (?,?,?,?)",
-            (file, datetime.datetime.now(), True, BOOKSTORE_CAT)
+            (file, datetime.datetime.now(), False, BOOKSTORE_CAT)
         )
         FILE_ID = cursor.lastrowid
 
@@ -388,7 +388,7 @@ def addCatalogList():
             continue
         cursor.execute(
             "INSERT INTO lists(name, updated, in_use, category_id) VALUES (?,?,?,?)",
-            (file, datetime.datetime.now(), True, CATALOG_CAT)
+            (file, datetime.datetime.now(), False, CATALOG_CAT)
         )
         FILE_ID = cursor.lastrowid
 
@@ -461,8 +461,8 @@ def addClassList():
             if cursor.fetchone():
                 continue
             cursor.execute(  # insert into lists
-                "INSERT INTO lists(name, updated, category_id) VALUES (?,?,?)",
-                (file, datetime.datetime.now(), CLASS_CAT)
+                "INSERT INTO lists(name, updated, category_id, in_use) VALUES (?,?,?,?)",
+                (file, datetime.datetime.now(), CLASS_CAT, False)
             )
             FILE_ID = cursor.lastrowid
             classes = []

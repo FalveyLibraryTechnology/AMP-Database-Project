@@ -12,6 +12,7 @@ CREATE TABLE books
 (
     isbn       VARCHAR(13) PRIMARY KEY,
     title      VARCHAR,
+    author     VARCHAR,
     year       DATE,
     electronic BIT,
     callnumber VARCHAR

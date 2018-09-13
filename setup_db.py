@@ -137,8 +137,8 @@ def addPublisherFiles():
                 ISBN = ISBN[0]
             else:
                 cursor.execute(
-                    "INSERT INTO books(isbn, title, year, electronic) VALUES (?,?,?,?)",
-                    (book["isbn"], book["title"], book["pub_year"], book["electronic"])
+                    "INSERT INTO books(isbn, title, author, year, electronic) VALUES (?,?,?,?,?)",
+                    (book["isbn"], book["title"], book["author"], book["pub_year"], book["electronic"])
                 )
                 ISBN = book["isbn"]
             cursor.execute(
@@ -284,8 +284,8 @@ def addBookstoreList():
                     continue
             else:
                 cursor.execute(
-                    "INSERT INTO books(isbn, title, year) VALUES (?,?,?)",
-                    (book["isbn"], book["title"], book["cy"])
+                    "INSERT INTO books(isbn, title, author, year) VALUES (?,?,?,?)",
+                    (book["isbn"], book["title"], book["author"], book["cy"])
                 )
             cursor.execute(
                 "INSERT INTO lists_books(isbn, list_id) VALUES (?,?)",
@@ -322,9 +322,10 @@ def parseCatalogCSVList(filepath):
         book = OrderedDict()
         book["isbn"] = normalize_isbn(ls[0])
         book["title"] = ls[1][:-2]
-        book["pub_yr"] = ls[2]
-        book["electronic"] = "Online" in ls[3] if len(ls) > 3 else None
-        book["callnumber"] = ls[4] if len(ls) > 4 else None
+        book["author"] = ls[2]
+        book["pub_yr"] = ls[3]
+        book["electronic"] = "Online" in ls[4] if len(ls) > 4 else None
+        book["callnumber"] = ls[5] if len(ls) > 5 else None
         books_list.append(book)
         bar.update()
     bar.finish()
@@ -336,7 +337,7 @@ def addCatalogJSTORExcel(filepath):
     books = []
     print(filepath)
     rows = getColumnsFromExcelFile(
-        ["Book title", "eISBN", "ISBN", "Copyright year"],
+        ["Book title", "Authors", "eISBN", "ISBN", "Copyright year"],
         filepath
     )
     bar = ProgressBar(len(rows), label="  parsing ")
@@ -344,6 +345,9 @@ def addCatalogJSTORExcel(filepath):
         title = None
         if "Book title" in row and row["Book title"]:
             title = row["Book title"]
+        author = None
+        if "Authors" in row and row["Authors"]:
+            author = row["Authors"]
         pub_year = None
         if "Copyright year" in row and row["Copyright year"]:
             try:
@@ -353,6 +357,7 @@ def addCatalogJSTORExcel(filepath):
         if "eISBN" in row and row["eISBN"]:
             books.append({
                 "title": title,
+                "author": author,
                 "pub_yr": pub_year,
                 "isbn": normalize_isbn(row["eISBN"]),
                 "electronic": True,
@@ -361,6 +366,7 @@ def addCatalogJSTORExcel(filepath):
         if "ISBN" in row and row["ISBN"]:
             books.append({
                 "title": title,
+                "author": author,
                 "pub_yr": pub_year,
                 "isbn": normalize_isbn(row["ISBN"]),
                 "electronic": True, # All JSTOR are electronic
@@ -405,8 +411,8 @@ def addCatalogList():
                 ISBN = ISBN[0]
             else:
                 cursor.execute(
-                    "INSERT INTO books(isbn, title, year, electronic, callnumber) VALUES (?,?,?,?,?)",
-                    (book["isbn"], book["title"], book["pub_yr"], book["electronic"], book["callnumber"])
+                    "INSERT INTO books(isbn, title, author, year, electronic, callnumber) VALUES (?,?,?,?,?,?)",
+                    (book["isbn"], book["title"], book["author"], book["pub_yr"], book["electronic"], book["callnumber"])
                 )
                 ISBN = book["isbn"]
             cursor.execute(

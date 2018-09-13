@@ -1,4 +1,3 @@
-# SOLR SOURCE: http://hermes.library.villanova.edu:8082/solr/biblio/select?fl=isbn,title,publishDate&indent=on&q=isbn:*&wt=csv&rows=999999
 from datetime import datetime
 import urllib.request
 import csv
@@ -13,7 +12,7 @@ if not dir:
     dir = "."
 
 print("Downloading from solr...")
-url = 'http://hermes.library.villanova.edu:8082/solr/biblio/select?fl=isbn,title,publishDate,format,callnumber-raw&indent=on&q=isbn:*&wt=csv&rows=999999'
+url = 'http://hermes.library.villanova.edu:8082/solr/biblio/select?fl=isbn,title,author_sort,publishDate,format,callnumber-raw&indent=on&q=isbn:*&wt=csv&rows=999999'
 request = urllib.request.Request(url)
 response = urllib.request.urlopen(request)
 html = response.read()

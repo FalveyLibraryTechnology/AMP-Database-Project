@@ -298,8 +298,9 @@ def addBookstoreList():
                     cursor.execute("SELECT 1 FROM courses WHERE course_code=?",
                                    (code,))
                     if not cursor.fetchone():
-                        cursor.execute("INSERT INTO courses(course_code, professor_name) VALUES (?,?)",
-                                       (code, course["instructor"]))
+                        continue # Don't add classes that aren't on the class list
+                        # cursor.execute("INSERT INTO courses(course_code, professor_name) VALUES (?,?)",
+                        #                (code, course["instructor"]))
                     # Course books
                     cursor.execute("SELECT 1 FROM courses_books WHERE isbn=? and course_code=?",
                                    (book["isbn"], code,))
@@ -380,7 +381,7 @@ def addCatalogJSTORExcel(filepath):
 def addCatalogList():
     catalog_dir = dir + '\\CatalogFiles'
     bookstore_files = [file.name for file in os.scandir(catalog_dir) if file.is_file()]
-    print(bookstore_files)
+    # print(bookstore_files)
     for file in bookstore_files:
         # Save file as list
         cursor.execute("SELECT 1 FROM lists WHERE name=?", (file,))
@@ -519,8 +520,8 @@ def createConfigFile():
     category_df.to_csv(dir + "\\configuration.csv", index=False, encoding='utf-8')
 
 
+addClassList()
 addCatalogList()
 addBookstoreList()
-addClassList()
 # addPublisherFiles()
 createConfigFile()

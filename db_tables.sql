@@ -49,16 +49,16 @@ CREATE TABLE lists_books
     FOREIGN KEY(list_id) REFERENCES lists(list_id)
 );
 
--- CREATE TABLE expanded_isbns
--- (
---     isbn_src      VARCHAR(13),
---     isbn_expanded VARCHAR(13),
---
---     PRIMARY KEY(isbn_src, isbn_expanded),
---
---     FOREIGN KEY(isbn_src) REFERENCES books(isbn_src),
---     FOREIGN KEY(isbn_expanded) REFERENCES books(isbn_expanded)
--- );
+CREATE TABLE expanded_isbns
+(
+    isbn_src      VARCHAR(13),
+    isbn_expanded VARCHAR(13),
+
+    PRIMARY KEY(isbn_src, isbn_expanded),
+
+    FOREIGN KEY(isbn_src) REFERENCES books(isbn_src),
+    FOREIGN KEY(isbn_expanded) REFERENCES books(isbn_expanded)
+);
 
 CREATE TABLE `courses` (
 	`course_code`	TEXT,

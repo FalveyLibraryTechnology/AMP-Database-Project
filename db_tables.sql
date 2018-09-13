@@ -13,7 +13,8 @@ CREATE TABLE books
     isbn       VARCHAR(13) PRIMARY KEY,
     title      VARCHAR,
     year       DATE,
-    electronic BIT
+    electronic BIT,
+    callnumber VARCHAR
 );
 
 CREATE TABLE categories
@@ -38,7 +39,7 @@ CREATE TABLE lists
 CREATE TABLE lists_books
 (
     -- CONNECTIONS
-    isbn    INTEGER,
+    isbn    VARCHAR(13),
     list_id INTEGER,
 
     PRIMARY KEY(isbn, list_id),
@@ -47,28 +48,28 @@ CREATE TABLE lists_books
     FOREIGN KEY(list_id) REFERENCES lists(list_id)
 );
 
-CREATE TABLE expanded_isbns
-(
-    isbn_src      INTEGER,
-    isbn_expanded INTEGER,
-
-    PRIMARY KEY(isbn_src, isbn_expanded),
-
-    FOREIGN KEY(isbn_src) REFERENCES books(isbn_src),
-    FOREIGN KEY(isbn_expanded) REFERENCES books(isbn_expanded)
-);
+-- CREATE TABLE expanded_isbns
+-- (
+--     isbn_src      VARCHAR(13),
+--     isbn_expanded VARCHAR(13),
+--
+--     PRIMARY KEY(isbn_src, isbn_expanded),
+--
+--     FOREIGN KEY(isbn_src) REFERENCES books(isbn_src),
+--     FOREIGN KEY(isbn_expanded) REFERENCES books(isbn_expanded)
+-- );
 
 CREATE TABLE `courses` (
 	`course_code`	TEXT,
 	`professor_name`	TEXT,
 	`professor_email`	TEXT,
 	`num_students`	INTEGER,
-	
+
 	PRIMARY KEY(`course_code`)
 );
 
 CREATE TABLE `courses_books` (
-	`isbn`	INTEGER,
+	`isbn`	VARCHAR(13),
 	`course_code`	TEXT,
 	`type`	TEXT,
 	`price`	REAL,

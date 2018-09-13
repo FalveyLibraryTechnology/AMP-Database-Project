@@ -67,7 +67,7 @@ def booksInBookstoreListAlsoInCatalog(file):
 	if not os.path.exists(reports_dir):
 			os.makedirs(reports_dir)
 
-	df = pd.DataFrame(q1, columns=['isbn', 'title', 'year', 'electronic'])
+	df = pd.DataFrame(q1, columns=['isbn', 'title', 'year', 'callnumber', 'electronic'])
 
 	df.to_csv(reports_dir + "\\" + file, index=False, encoding='utf-8')
 
@@ -82,7 +82,7 @@ def booksInBookstoreListNotInCatalog(file):
 	if not os.path.exists(reports_dir):
 			os.makedirs(reports_dir)
 
-	df = pd.DataFrame(q2, columns=['isbn', 'title', 'year', 'electronic'])
+	df = pd.DataFrame(q2, columns=['isbn', 'title', 'year', 'callnumber', 'electronic'])
 
 	df.to_csv(reports_dir + "\\" + file, index=False, encoding='utf-8')
 
@@ -96,7 +96,7 @@ def booksInBothCatalogAndIn_UsePublisher(file):
 	if not os.path.exists(reports_dir):
 			os.makedirs(reports_dir)
 
-	df = pd.DataFrame(q3, columns=['isbn', 'title', 'year', 'electronic'])
+	df = pd.DataFrame(q3, columns=['isbn', 'title', 'year', 'callnumber', 'electronic'])
 
 	df.to_csv(reports_dir + "\\" + file, index=False, encoding='utf-8')
 
@@ -110,7 +110,7 @@ def booksInBookstoreListAlsoIn_UsePublisher(file):
 	if not os.path.exists(reports_dir):
 			os.makedirs(reports_dir)
 
-	df = pd.DataFrame(q4, columns=['isbn', 'title', 'year', 'electronic'])
+	df = pd.DataFrame(q4, columns=['isbn', 'title', 'year', 'callnumber', 'electronic'])
 
 	df.to_csv(reports_dir + "\\" + file, index=False, encoding='utf-8')
 
@@ -127,7 +127,7 @@ def booksInBookstoreListNotInCatalogAndInPublisherList(file):
 	if not os.path.exists(reports_dir):
 			os.makedirs(reports_dir)
 
-	df = pd.DataFrame(q2, columns=['isbn', 'title', 'year', 'electronic'])
+	df = pd.DataFrame(q2, columns=['isbn', 'title', 'year', 'callnumber', 'electronic'])
 
 	df.to_csv(reports_dir + "\\" + file, index=False, encoding='utf-8')
 

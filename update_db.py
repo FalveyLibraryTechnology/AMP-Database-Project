@@ -13,6 +13,8 @@ from src.ProgressBar import ProgressBar
 from src.utils import getColumnsFromExcelFile, normalize_isbn, sortUnique
 
 dir = os.path.dirname(__file__)
+if not dir:
+    dir = "."
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-db", "--databasename", required=True, help="Database name")
@@ -29,7 +31,7 @@ if os.path.exists(db_path):
 else:
 	print("No such database file exists. Please run setup_db.py to create database \'%s\' first" % (args.databasename))
 
-	
+
 def updateListInUse(LIST_ID, CATEGORY_ID, in_use):
     in_use = 1 if(in_use.lower() == "yes") else 0
     bar = ProgressBar(1, label="  updating ")
@@ -39,7 +41,7 @@ def updateListInUse(LIST_ID, CATEGORY_ID, in_use):
     conn.commit()
 
 
-def parseConfigurationFile():	
+def parseConfigurationFile():
 	# Loading csv
 	with open(config_path, 'r', encoding="utf-8") as csv_file:
 		header_line = next(csv_file)
@@ -50,7 +52,7 @@ def parseConfigurationFile():
 			list_id = r[3]
 			#if(in_use.lower() == "yes"):
 			updateListInUse(list_id, category_id, in_use)
-		
+
 
 # Check if configuration file exists and get row count
 if os.path.exists(config_path):

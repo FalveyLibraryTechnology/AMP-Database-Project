@@ -26,6 +26,7 @@ db_path = dir + "\\tmp\\" + args.databasename + ".sqlite"
 
 # Check if exists
 if NUKE and os.path.exists(db_path):
+    print("Erasing all content in %s" % args.databasename)
     os.remove(db_path)
 
 # Make and Reset database
@@ -113,7 +114,7 @@ def addPublisherFiles():
             continue
         cursor.execute(
             "INSERT INTO lists(name, updated, in_use, category_id) VALUES (?,?,?,?)",
-            (file, datetime.datetime.now(), True, PUBLISHER_CAT)
+            (file, datetime.datetime.now(), False, PUBLISHER_CAT)
         )
         FILE_ID = cursor.lastrowid
 
@@ -136,8 +137,8 @@ def addPublisherFiles():
                 ISBN = ISBN[0]
             else:
                 cursor.execute(
-                    "INSERT INTO books(isbn, title, year, electronic) VALUES (?,?,?,?)",
-                    (book["isbn"], book["title"], book["pub_year"], book["electronic"])
+                    "INSERT INTO books(isbn, title, author, year, electronic) VALUES (?,?,?,?,?)",
+                    (book["isbn"], book["title"], book["author"], book["pub_year"], book["electronic"])
                 )
                 ISBN = book["isbn"]
             cursor.execute(
@@ -260,7 +261,7 @@ def addBookstoreList():
             continue
         cursor.execute(
             "INSERT INTO lists(name, updated, in_use, category_id) VALUES (?,?,?,?)",
-            (file, datetime.datetime.now(), True, BOOKSTORE_CAT)
+            (file, datetime.datetime.now(), False, BOOKSTORE_CAT)
         )
         FILE_ID = cursor.lastrowid
 
@@ -283,8 +284,8 @@ def addBookstoreList():
                     continue
             else:
                 cursor.execute(
-                    "INSERT INTO books(isbn, title, year) VALUES (?,?,?)",
-                    (book["isbn"], book["title"], book["cy"])
+                    "INSERT INTO books(isbn, title, author, year) VALUES (?,?,?,?)",
+                    (book["isbn"], book["title"], book["author"], book["cy"])
                 )
             cursor.execute(
                 "INSERT INTO lists_books(isbn, list_id) VALUES (?,?)",
@@ -297,8 +298,9 @@ def addBookstoreList():
                     cursor.execute("SELECT 1 FROM courses WHERE course_code=?",
                                    (code,))
                     if not cursor.fetchone():
-                        cursor.execute("INSERT INTO courses(course_code, professor_name) VALUES (?,?)",
-                                       (code, course["instructor"]))
+                        continue # Don't add classes that aren't on the class list
+                        # cursor.execute("INSERT INTO courses(course_code, professor_name) VALUES (?,?)",
+                        #                (code, course["instructor"]))
                     # Course books
                     cursor.execute("SELECT 1 FROM courses_books WHERE isbn=? and course_code=?",
                                    (book["isbn"], code,))
@@ -319,19 +321,67 @@ def parseCatalogCSVList(filepath):
     bar = ProgressBar(len(your_list), label="  parsing ")
     for ls in your_list:
         book = OrderedDict()
-        book['isbn'] = normalize_isbn(ls[0])
-        book['title'] = ls[1][:-2]
-        book['pub_yr'] = ls[2]
+        book["isbn"] = normalize_isbn(ls[0])
+        book["title"] = ls[1][:-2]
+        book["author"] = ls[2]
+        book["pub_yr"] = ls[3]
+        book["electronic"] = "Online" in ls[4] if len(ls) > 4 else None
+        book["callnumber"] = ls[5] if len(ls) > 5 else None
         books_list.append(book)
         bar.update()
     bar.finish()
     return books_list
 
 
+# Specialized for JSTOR
+def addCatalogJSTORExcel(filepath):
+    books = []
+    print(filepath)
+    rows = getColumnsFromExcelFile(
+        ["Book title", "Authors", "eISBN", "ISBN", "Copyright year"],
+        filepath
+    )
+    bar = ProgressBar(len(rows), label="  parsing ")
+    for row in rows:
+        title = None
+        if "Book title" in row and row["Book title"]:
+            title = row["Book title"]
+        author = None
+        if "Authors" in row and row["Authors"]:
+            author = row["Authors"]
+        pub_year = None
+        if "Copyright year" in row and row["Copyright year"]:
+            try:
+                pub_year = int(row["Copyright year"])
+            except ValueError:
+                pass
+        if "eISBN" in row and row["eISBN"]:
+            books.append({
+                "title": title,
+                "author": author,
+                "pub_yr": pub_year,
+                "isbn": normalize_isbn(row["eISBN"]),
+                "electronic": True,
+                "callnumber": None
+            })
+        if "ISBN" in row and row["ISBN"]:
+            books.append({
+                "title": title,
+                "author": author,
+                "pub_yr": pub_year,
+                "isbn": normalize_isbn(row["ISBN"]),
+                "electronic": True, # All JSTOR are electronic
+                "callnumber": None
+            })
+        bar.update()
+    bar.finish()
+    return books
+
+
 def addCatalogList():
     catalog_dir = dir + '\\CatalogFiles'
     bookstore_files = [file.name for file in os.scandir(catalog_dir) if file.is_file()]
-    print(bookstore_files)
+    # print(bookstore_files)
     for file in bookstore_files:
         # Save file as list
         cursor.execute("SELECT 1 FROM lists WHERE name=?", (file,))
@@ -339,19 +389,18 @@ def addCatalogList():
             continue
         cursor.execute(
             "INSERT INTO lists(name, updated, in_use, category_id) VALUES (?,?,?,?)",
-            (file, datetime.datetime.now(), True, CATALOG_CAT)
+            (file, datetime.datetime.now(), False, CATALOG_CAT)
         )
         FILE_ID = cursor.lastrowid
 
         books = []
-        print(file)
         filepath = os.path.join(catalog_dir, file)
         if file[-3:] == "csv":
             books = parseCatalogCSVList(filepath)
         elif file[-4:] == "json":
             books = json.load(filepath)
         else:  # Excel
-            print("TODO excel processing")
+            books = addCatalogJSTORExcel(filepath)
         bar = ProgressBar(len(books), label="  saving (%d) " % len(books))
         for book in books:
             cursor.execute("SELECT isbn FROM books WHERE isbn=?", (book["isbn"],))
@@ -363,8 +412,8 @@ def addCatalogList():
                 ISBN = ISBN[0]
             else:
                 cursor.execute(
-                    "INSERT INTO books(isbn, title, year) VALUES (?,?,?)",
-                    (book["isbn"], book["title"], book["pub_yr"])
+                    "INSERT INTO books(isbn, title, author, year, electronic, callnumber) VALUES (?,?,?,?,?,?)",
+                    (book["isbn"], book["title"], book["author"], book["pub_yr"], book["electronic"], book["callnumber"])
                 )
                 ISBN = book["isbn"]
             cursor.execute(
@@ -413,8 +462,8 @@ def addClassList():
             if cursor.fetchone():
                 continue
             cursor.execute(  # insert into lists
-                "INSERT INTO lists(name, updated, category_id) VALUES (?,?,?)",
-                (file, datetime.datetime.now(), CLASS_CAT)
+                "INSERT INTO lists(name, updated, category_id, in_use) VALUES (?,?,?,?)",
+                (file, datetime.datetime.now(), CLASS_CAT, False)
             )
             FILE_ID = cursor.lastrowid
             classes = []
@@ -471,8 +520,8 @@ def createConfigFile():
     category_df.to_csv(dir + "\\configuration.csv", index=False, encoding='utf-8')
 
 
-addBookstoreList()
-addCatalogList()
 addClassList()
-addPublisherFiles()
+addCatalogList()
+addBookstoreList()
+# addPublisherFiles()
 createConfigFile()
